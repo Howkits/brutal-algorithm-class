@@ -1,18 +1,19 @@
 // @ts-nocheck
-import { chan, Channel, select } from './csp.js';
-import { WebSocketClient } from './client.js';
+import { chan, Channel, select } from 'https://creatcodebuild.github.io/csp/dist/csp.js';
 
 function SortVisualizationComponent(id: string, arrays: Channel<number[]>) {
 
     let ele: HTMLElement = document.getElementById(id);
+    console.log(ele);
     let stop = chan<null>();
     let resume = chan<null>();
 
+
     // Animation SVG
-    CreateArrayAnimationSVGComponent(ele, id + 'animation', 0, 0)(arrays, stop, resume);
+    CreateArrayAnimationSVGComponent(ele.shadowRoot, id + 'animation', 0, 0)(arrays, stop, resume);
 
     // Stop/Resume Button
-    let button = ele.getElementsByTagName('button')[0]
+    let button = ele.shadowRoot?.querySelector('button');
     let stopped = false;
     button.addEventListener('click', async () => {
         // if(!clicked) {
@@ -29,11 +30,12 @@ function SortVisualizationComponent(id: string, arrays: Channel<number[]>) {
 }
 
 function CreateArrayAnimationSVGComponent(
-    parent: HTMLElement,
+    parent: ShadowRoot,
     id: string,
     x: number, y: number
 ) {
-    let svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    let svg = parent.querySelector('svg');
+    // let svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.id = id;
     let div = document.createElement('div');
     div.appendChild(svg);
@@ -49,7 +51,7 @@ function CreateArrayAnimationSVGComponent(
                 let r = rect(x + Number(i) * 4, y, 3, number);
                 svg.appendChild(r);
             }
-            await sleep(10);
+            await sleep(100);
         }
     }
 
@@ -67,80 +69,6 @@ function CreateArrayAnimationSVGComponent(
         return rect;
     }
 }
-
-// async function paintArray(
-//     svg: HTMLElement, document: Document,
-//     initData: Array<number>,
-//     insertionArray: Channel<number[]>,
-//     mergeArray: Channel<[number[], number]>,
-//     stop: Channel<null>,
-//     resume: Channel<null>
-// ) {
-//     console.log('render loop');
-//     // arrayAnimator(insertionArray, 'insert', 0, 0)
-//     animatorMergeSort(mergeArray, 'merge', 0, 60)
-//     let unblock = chan<null>();
-//     unblock.close();
-
-//     async function arrayAnimator(events: Channel<number[]>, className: string, x: number, y: number) {
-//         let stopped = false;
-//         let stopResume = await needToStop(stop, resume);
-//         for await (let event of events) {
-//             await stopResume.pop();
-//             clearClass(className);
-//             for (let [i, number] of Object.entries(event)) {
-//                 let r = rect(className, x + Number(i) * 4, y, 3, number);
-//                 svg.appendChild(r);
-//             }
-//             await sleep(20);
-//         }
-//     }
-//     async function animatorMergeSort(events: Channel<[number[], number]>, className: string, x: number, y: number) {
-//         let numebrsToRender = initData.map((x) => x);
-
-//         for await (let [numbers, startIndex] of events) {
-//             // if (needToStop(stop)) {
-//             //     break;
-//             // }
-//             let children = svg.childNodes;
-//             clearClass(className);
-
-//             // put current numbers into previousNumbers
-//             for (let i = 0; i < numbers.length; i++) {
-//                 numebrsToRender[i + startIndex] = numbers[i];
-//             }
-
-//             for (let [i, number] of Object.entries(numebrsToRender)) {
-//                 let r = rect(className, x + Number(i) * 4, y, 3, number)
-//                 svg.appendChild(r);
-//             }
-//             await sleep(3);
-//         }
-//     }
-
-//     function empty(ele) {
-//         ele.textContent = undefined;
-//     }
-//     function clearClass(name: string) {
-//         var paras = document.getElementsByClassName(name);
-//         while (paras[0]) {
-//             paras[0].parentNode.removeChild(paras[0]);
-//         }
-//     }
-//     function rect(className, x, y, width, height): SVGElementTagNameMap['rect'] {
-//         // https://developer.mozilla.org/en-US/docs/Web/API/Document/createElementNS
-//         // https://stackoverflow.com/questions/12786797/draw-rectangles-dynamically-in-svg
-//         let rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-//         rect.setAttribute('width', width);
-//         // @ts-ignore
-//         rect.setAttribute('height', height);
-//         // @ts-ignore
-//         rect.setAttribute('x', x);
-//         rect.setAttribute('y', y);
-//         rect.classList.add(className);
-//         return rect;
-//     }
-// }
 
 function sleep(time) {
     return new Promise((resolve) => {
@@ -241,8 +169,6 @@ function controlButton(stop: Channel<null>, resume: Channel<null>) {
 }
 
 async function main() {
-    // let svg = document.getElementById("svg");
-
     // init an array
     let array = [];
     for (let i = 0; i < 50; i++) {
@@ -261,8 +187,7 @@ async function main() {
     let s1 = InsertionSort(array, insertQueue);
     let s2 = MergeSort(array, mergeQueue);
     console.log('after sort');
-    // let render = paintArray(svg, document, array, insertQueue, mergeQueue, stop, resume);
-    // Promise.all([s1, s2, render])
+
 
     let mergeQueue2 = (() => {
         let c = chan();
@@ -282,17 +207,21 @@ async function main() {
     })();
     console.log(mergeQueue2);
 
+    
+    customElements.define('sort-visualization',
+        class extends HTMLElement {
+            constructor() {
+                super();
+                let template = document.getElementById('sort-visualization');
+                let templateContent = template.content;
+                const shadowRoot = this.attachShadow({ mode: 'open' })
+                    .appendChild(templateContent.cloneNode(true));
+            }
+        }
+    );
+
     SortVisualizationComponent('insertion-sort', insertQueue);
     SortVisualizationComponent('merge-sort', mergeQueue2);
-
-    let client = await WebSocketClient('ws://localhost:8081');
-    let i = 0;
-    while(++i) {
-        await client.send(i);
-        console.log(1);
-        console.log(await client.receive());
-        
-    }
 }
 main();
 
