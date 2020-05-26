@@ -134,6 +134,12 @@ class LinkedList {
     }
     // 在链表头部追加元素         
     append_head(data) {
+        if(this._length===0){
+            this.head=new Node(data)
+            this.tail=this.head
+            this._length+=1
+            return
+        }
         let newHead=new Node(data)
         newHead.next=this.head
         this.head=newHead
@@ -208,7 +214,9 @@ class Node {
 
 //test
 let list = new LinkedList();
+list.insert(0,0)
 list.append(1);
+list.insert(10,1)
 list.append(2);
 list.append(3);
 list.append_head(4);
@@ -218,6 +226,6 @@ list.insert(7,0)
 list.insert(8,7)
 list.insert(9,2)
 
-// 最终结果应该为7 6 9 5 4 1 2 3 8
-list.get(8);
+// 最终结果应该为7 6 9 5 4 0 10 1 8 2 3
+list.get(10);
 console.log('len', list.length());
